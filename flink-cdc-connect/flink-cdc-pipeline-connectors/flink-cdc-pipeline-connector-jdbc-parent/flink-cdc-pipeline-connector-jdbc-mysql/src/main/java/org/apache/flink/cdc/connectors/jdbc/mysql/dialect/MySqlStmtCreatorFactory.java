@@ -40,15 +40,19 @@ public class MySqlStmtCreatorFactory {
     private static final String DROP_COLUMN_DDL = "ALTER TABLE %s DROP COLUMN `%s`;";
 
     public String buildUpsertSql(TableId tableId, List<Column> columns) {
-        String tableName = tableId.identifier();
-        // Building column names and value placeholders
-        String columnNames =
-                columns.stream().map(Column::getName).collect(Collectors.joining(", "));
+        // 为表名添加反引号
+        String tableName = "`" + tableId.getSchemaName() + "`.`" + tableId.getTableName() + "`";
 
-        String valuePlaceholders =
-                columns.stream().map(column -> "?").collect(Collectors.joining(", "));
+        // 为所有列名添加反引号
+        String columnNames = columns.stream()
+                .map(column -> "`" + column.getName() + "`")
+                .collect(Collectors.joining(", "));
 
-        // Building the initial insert part
+        String valuePlaceholders = columns.stream()
+                .map(column -> "?")
+                .collect(Collectors.joining(", "));
+
+        // 构建 INSERT ... ON DUPLICATE KEY UPDATE 语句
         StringBuilder query = new StringBuilder();
         query.append("INSERT INTO ")
                 .append(tableName)
@@ -58,11 +62,10 @@ public class MySqlStmtCreatorFactory {
                 .append(valuePlaceholders)
                 .append(") ON DUPLICATE KEY UPDATE ");
 
-        // Building the update part
-        String updatePart =
-                columns.stream()
-                        .map(column -> column.getName() + " = VALUES(" + column.getName() + ")")
-                        .collect(Collectors.joining(", "));
+        // 为 UPDATE 部分的列名也添加反引号
+        String updatePart = columns.stream()
+                .map(column -> "`" + column.getName() + "` = VALUES(`" + column.getName() + "`)")
+                .collect(Collectors.joining(", "));
 
         query.append(updatePart).append(";");
 
@@ -159,6 +162,7 @@ public class MySqlStmtCreatorFactory {
     }
 
     public String buildCreateTableSql(TableId tableId, Schema schema, boolean ignoreIfExists) {
+        //TODO 如果原表有索引和分区那么自动建表时候并不会创建
         StringBuilder builder = new StringBuilder();
         builder.append(
                 String.format(
@@ -220,9 +224,18 @@ public class MySqlStmtCreatorFactory {
         // columns. See https://bugs.mysql.com/bug.php?id=107349 for more details.
         if (!COLUMN_TYPES_THAT_DO_NOT_SUPPORT_DEFAULT_VALUE.contains(type.getColumnType())) {
             if (!StringUtils.isNullOrWhitespaceOnly(column.getDefaultValueExpression())) {
-                builder.append(String.format(" DEFAULT '%s'", column.getDefaultValueExpression()));
+                if ("TIMESTAMP".equalsIgnoreCase(type.getColumnType())) {
+                    builder.append(handleTimestampDefaultValue());
+                } else {
+                    builder.append(String.format(" DEFAULT '%s'", column.getDefaultValueExpression()));
+                }
             }
         }
         return builder.toString();
+    }
+
+    private String handleTimestampDefaultValue() {
+        // 其他情况可以抛出异常或返回安全默认值
+        return " DEFAULT CURRENT_TIMESTAMP";
     }
 }

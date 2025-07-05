@@ -17,8 +17,7 @@
 
 package org.apache.flink.cdc.connectors.jdbc.sink.utils;
 
-import org.apache.flink.cdc.common.data.DecimalData;
-import org.apache.flink.cdc.common.data.TimestampData;
+import org.apache.flink.cdc.common.data.*;
 import org.apache.flink.cdc.common.data.binary.BinaryStringData;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -28,9 +27,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonSeria
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 /** JSON wrapper class for serializing / deserializing row data. */
@@ -43,6 +45,7 @@ public class JsonWrapper implements Serializable {
         module.addSerializer(BinaryStringData.class, new BinaryStringDataSerializer());
         module.addSerializer(DecimalData.class, new DecimalDataSerializer());
         module.addSerializer(TimestampData.class, new TimestampDataSerializer());
+        module.addSerializer(LocalZonedTimestampData.class,new LocalZonedTimestampDataSerializer());
         objectMapper.registerModule(module);
     }
 
@@ -91,6 +94,18 @@ public class JsonWrapper implements Serializable {
         }
     }
 
+    static final class LocalZonedTimestampDataSerializer extends JsonSerializer<LocalZonedTimestampData> {
+        private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+        @Override
+        public void serialize(
+                LocalZonedTimestampData value, JsonGenerator gen, SerializerProvider serializers)
+                throws IOException {
+
+            gen.writeString(value.toInstant().atZone(ZoneOffset.UTC).format(formatter));
+        }
+    }
+
     // TimestampData Serializer
     static final class TimestampDataSerializer extends JsonSerializer<TimestampData> {
         private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -112,6 +127,7 @@ public class JsonWrapper implements Serializable {
             module.addSerializer(BinaryStringData.class, new BinaryStringDataSerializer());
             module.addSerializer(DecimalData.class, new DecimalDataSerializer());
             module.addSerializer(TimestampData.class, new TimestampDataSerializer());
+            module.addSerializer(LocalZonedTimestampData.class,new LocalZonedTimestampDataSerializer());
             objectMapper.registerModule(module);
         }
     }

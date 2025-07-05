@@ -35,17 +35,20 @@ import org.apache.flink.cdc.common.types.TimestampType;
 import org.apache.flink.cdc.common.types.TinyIntType;
 import org.apache.flink.cdc.common.types.VarBinaryType;
 import org.apache.flink.cdc.common.types.VarCharType;
+import org.apache.flink.cdc.connectors.jdbc.connection.JdbcConnectionFactory;
 import org.apache.flink.cdc.connectors.jdbc.dialect.JdbcColumn;
 
 import com.mysql.cj.MysqlType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** MySQL type transformer from CDC {@link DataType}s to {@link JdbcColumn}. */
 public class MySqlTypeTransformer extends DataTypeDefaultVisitor<JdbcColumn.Builder> {
     private final JdbcColumn.Builder builder;
-    public static final int POWER_2_8 = (int) Math.pow(2, 8);
-    public static final int POWER_2_16 = (int) Math.pow(2, 16);
-    public static final int POWER_2_24 = (int) Math.pow(2, 24);
-    public static final int POWER_2_32 = (int) Math.pow(2, 32);
+    public static final long POWER_2_8 = (long) Math.pow(2, 8);
+    public static final long POWER_2_16 = (long) Math.pow(2, 16);
+    public static final long POWER_2_24 = (long) Math.pow(2, 24);
+    public static final long POWER_2_32 = (long) Math.pow(2, 32);
 
     public MySqlTypeTransformer(JdbcColumn.Builder builder) {
         this.builder = builder;
